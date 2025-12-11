@@ -1,3 +1,4 @@
+// src/components/AnimatedTitleBubbles.js
 import React, { useEffect, useRef } from 'react';
 import {
   View,
@@ -18,15 +19,12 @@ export default function AnimatedTitleBubbles({
   onSelectItem,
   titleFontSize = 32,
 }) {
-  // Title animation
   const titleOpacity = useRef(new Animated.Value(0)).current;
   const titleTranslateY = useRef(new Animated.Value(0)).current;
 
-  // Bubble container animation
   const bubbleContainerOpacity = useRef(new Animated.Value(0)).current;
   const bubbleContainerTranslateY = useRef(new Animated.Value(20)).current;
 
-  // Individual bubble fade-in
   const bubbleItemOpacities = useRef([]).current;
   const allItems = [...positiveItems, ...negativeItems];
 
@@ -38,7 +36,6 @@ export default function AnimatedTitleBubbles({
   }
 
   useEffect(() => {
-    // reset
     titleOpacity.setValue(0);
     titleTranslateY.setValue(0);
     bubbleContainerOpacity.setValue(0);
@@ -54,7 +51,7 @@ export default function AnimatedTitleBubbles({
     const holdCenter = Animated.delay(750);
 
     const slideTitleUp = Animated.timing(titleTranslateY, {
-      toValue: -SCREEN_HEIGHT * 0.25, // moved a bit higher for spacing
+      toValue: -SCREEN_HEIGHT * 0.25,
       duration: 500,
       useNativeDriver: true,
     });
@@ -96,7 +93,7 @@ export default function AnimatedTitleBubbles({
 
     const backgroundColor = isSelected
       ? item.color
-      : 'rgba(15,23,42,0.06)'; // neutral until selected
+      : 'rgba(15,23,42,0.06)';
 
     const textColor = isSelected ? '#ffffff' : '#111827';
 
@@ -150,7 +147,7 @@ export default function AnimatedTitleBubbles({
 
   return (
     <View style={styles.container}>
-      {/* Title: centered, then moves up */}
+      {/* Title: centered then moved up */}
       <Animated.Text
         style={[
           styles.titleText,
@@ -164,7 +161,7 @@ export default function AnimatedTitleBubbles({
         {title}
       </Animated.Text>
 
-      {/* Bubbles: appear after title finishes motion */}
+      {/* Bubbles */}
       <Animated.View
         style={[
           styles.bubbleContainer,
@@ -183,11 +180,6 @@ export default function AnimatedTitleBubbles({
             renderBubble(item, positiveItems.length + i)
           )}
         </View>
-
-        {/* Swipe up hint (text only) */}
-        <View style={styles.swipeHintContainer}>
-          <Text style={styles.swipeHintText}>Swipe up to continue</Text>
-        </View>
       </Animated.View>
     </View>
   );
@@ -197,7 +189,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center', // centers title initially
+    justifyContent: 'center',
     paddingHorizontal: 24,
   },
   titleText: {
@@ -209,7 +201,7 @@ const styles = StyleSheet.create({
   },
   bubbleContainer: {
     width: '100%',
-    marginTop: 200, // where title "lands" and bubbles live
+    marginTop: 200,
     alignItems: 'center',
   },
   bubbleSection: {
@@ -245,13 +237,5 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 5 },
     elevation: 6,
   },
-  swipeHintContainer: {
-    marginTop: 18,
-    alignItems: 'center',
-  },
-  swipeHintText: {
-    fontFamily: 'PlusJakartaSans_400Regular',
-    fontSize: 13,
-    color: '#6b7280',
-  },
 });
+

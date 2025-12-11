@@ -1,16 +1,28 @@
+// App.js
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { GestureHandlerRootView, GestureDetector } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
+
 import useSessionStore from './src/store/useSessionStore';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import FeelingScreen from './src/screens/FeelingScreen';
 import ReasonScreen from './src/screens/ReasonScreen';
+import ReflectionScreen from './src/screens/ReflectionScreen';
 import { createSwipeGesture } from './src/data/gestures';
 
 export default function App() {
   const currentScreen = useSessionStore((state) => state.currentScreen);
-  const gesture = createSwipeGesture(currentScreen);
+  const setCurrentScreen = useSessionStore((state) => state.setCurrentScreen);
+  const selectedFeeling = useSessionStore((state) => state.selectedFeeling);
+  const selectedReasons = useSessionStore((state) => state.selectedReasons);
+
+  const swipeGesture = createSwipeGesture(
+    currentScreen,
+    setCurrentScreen,
+    selectedFeeling,
+    selectedReasons
+  );
 
   const renderScreen = () => {
     switch (currentScreen) {
@@ -19,45 +31,45 @@ export default function App() {
       case 1:
         return <FeelingScreen />;
       case 2:
-      default:
         return <ReasonScreen />;
+      case 3:
+        return <ReflectionScreen />;
+      default:
+        return <WelcomeScreen />;
     }
   };
 
-  return (
-    <GestureHandlerRootView style={styles.root}>
-      <LinearGradient
-        colors={['#f5f7fb', '#e8ecf7']}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
-        style={styles.gradient}
-      >
-        <GestureDetector gesture={gesture}>
-          <View style={styles.screenContainer}>
-            {renderScreen()}
-          </View>
-        </GestureDetector>
+  // We'll show dots for the main flow screens (Feeling, Reason, Reflection)
+  const totalSteps = 3;
+  const stepIndex = Math.min(Math.max(currentScreen - 1, 0), totalSteps - 1);
 
-        <View style={styles.dotsContainer}>
-          {[0, 1, 2].map((index) => (
-            <View
-              key={index}
-              style={[
-                styles.dot,
-                index === currentScreen && styles.dotActive,
-              ]}
-            />
-          ))}
-        </View>
-      </LinearGradient>
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <GestureDetector gesture={swipeGesture}>
+        <LinearGradient
+          colors={['#f9fafb', '#e5e7eb']}
+          style={styles.gradient}
+        >
+          <View style={styles.screenContainer}>{renderScreen()}</View>
+
+          <View style={styles.dotsContainer}>
+            {Array.from({ length: totalSteps }).map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.dot,
+                  index === stepIndex && styles.dotActive,
+                ]}
+              />
+            ))}
+          </View>
+        </LinearGradient>
+      </GestureDetector>
     </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
   gradient: {
     flex: 1,
   },
@@ -67,19 +79,17 @@ const styles = StyleSheet.create({
   dotsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 32,
+    marginBottom: 40,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#c4cad4',
+    backgroundColor: '#d1d5db',
     marginHorizontal: 4,
   },
   dotActive: {
-    width: 18,
-    height: 8,
-    borderRadius: 4,
     backgroundColor: '#111827',
+    transform: [{ scale: 1.2 }],
   },
 });

@@ -1,5 +1,6 @@
+// src/screens/FeelingScreen.js
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import useSessionStore from '../store/useSessionStore';
 import emotions from '../data/emotions';
@@ -16,10 +17,9 @@ export default function FeelingScreen() {
     setFeeling(item);
 
     try {
-      // Light, satisfying "tick" when they pick a feeling
       await Haptics.selectionAsync();
     } catch (e) {
-      // fail silently if haptics not available
+      // ignore haptics error
     }
   };
 
@@ -32,6 +32,11 @@ export default function FeelingScreen() {
         selectedItem={selectedFeeling}
         onSelectItem={handleSelectFeeling}
       />
+
+      {/* Swipe up hint glued to bottom */}
+      <View style={styles.swipeHintContainer}>
+        <Text style={styles.swipeHintText}>Swipe up to continue</Text>
+      </View>
     </View>
   );
 }
@@ -39,5 +44,17 @@ export default function FeelingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  swipeHintContainer: {
+    position: 'absolute',
+    bottom: 32,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  swipeHintText: {
+    fontFamily: 'PlusJakartaSans_400Regular',
+    fontSize: 13,
+    color: '#6b7280',
   },
 });

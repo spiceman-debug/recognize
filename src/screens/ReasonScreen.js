@@ -1,3 +1,4 @@
+// src/screens/ReasonScreen.js
 import React, { useEffect, useRef } from 'react';
 import {
   View,
@@ -37,7 +38,6 @@ export default function ReasonScreen() {
       useNativeDriver: true,
     });
 
-    // ⬆️ Slightly longer center hang: 1500ms
     const holdCenter = Animated.delay(1500);
 
     const fadeOutSubtitle = Animated.timing(subtitleOpacity, {
@@ -77,7 +77,9 @@ export default function ReasonScreen() {
     toggleReason(reason);
     try {
       await Haptics.selectionAsync();
-    } catch {}
+    } catch {
+      // ignore
+    }
   };
 
   return (
@@ -134,6 +136,11 @@ export default function ReasonScreen() {
           })}
         </View>
       </Animated.View>
+
+      {/* Swipe up hint glued to bottom – identical to FeelingScreen */}
+      <View style={styles.swipeHintContainer}>
+        <Text style={styles.swipeHintText}>Swipe up to continue</Text>
+      </View>
     </View>
   );
 }
@@ -174,7 +181,6 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
 
-  // ⬆️ Prompt brought closer to the title by reducing marginTop
   reasonArea: {
     marginTop: SCREEN_HEIGHT * 0.18,
     width: '100%',
@@ -219,5 +225,19 @@ const styles = StyleSheet.create({
   chipTextSelected: {
     color: '#ffffff',
     fontWeight: '500',
+  },
+
+  // EXACT same as FeelingScreen
+  swipeHintContainer: {
+    position: 'absolute',
+    bottom: 32,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  swipeHintText: {
+    fontFamily: 'PlusJakartaSans_400Regular',
+    fontSize: 13,
+    color: '#6b7280',
   },
 });
