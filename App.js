@@ -9,33 +9,43 @@ import ReasonScreen from './src/screens/ReasonScreen';
 import { createSwipeGesture } from './src/data/gestures';
 
 export default function App() {
-  const { currentScreen, setCurrentScreen, selectedFeeling } = useSessionStore();
+  const currentScreen = useSessionStore((state) => state.currentScreen);
+  const gesture = createSwipeGesture(currentScreen);
 
-  // Create swipe gesture with latest selectedFeeling
-  const swipeGesture = createSwipeGesture(currentScreen, setCurrentScreen, selectedFeeling);
-
-  // Screens in order
-  const screens = [
-    <WelcomeScreen key="welcome" />,
-    <FeelingScreen key="feeling" />,
-    <ReasonScreen key="reason" />,
-  ];
+  const renderScreen = () => {
+    switch (currentScreen) {
+      case 0:
+        return <WelcomeScreen />;
+      case 1:
+        return <FeelingScreen />;
+      case 2:
+      default:
+        return <ReasonScreen />;
+    }
+  };
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <LinearGradient colors={['#cce7ff', '#ffffff']} style={styles.container}>
-        <GestureDetector gesture={swipeGesture}>
+    <GestureHandlerRootView style={styles.root}>
+      <LinearGradient
+        colors={['#f5f7fb', '#e8ecf7']}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
+        style={styles.gradient}
+      >
+        <GestureDetector gesture={gesture}>
           <View style={styles.screenContainer}>
-            {screens[currentScreen]}
+            {renderScreen()}
           </View>
         </GestureDetector>
 
-        {/* Page indicator dots */}
         <View style={styles.dotsContainer}>
-          {screens.map((_, i) => (
+          {[0, 1, 2].map((index) => (
             <View
-              key={i}
-              style={[styles.dot, { opacity: i === currentScreen ? 1 : 0.3 }]}
+              key={index}
+              style={[
+                styles.dot,
+                index === currentScreen && styles.dotActive,
+              ]}
             />
           ))}
         </View>
@@ -45,18 +55,31 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  screenContainer: { flex: 1 }, // ensures screen fills gradient
+  root: {
+    flex: 1,
+  },
+  gradient: {
+    flex: 1,
+  },
+  screenContainer: {
+    flex: 1,
+  },
   dotsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 40,
+    marginBottom: 32,
   },
   dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#333',
-    marginHorizontal: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#c4cad4',
+    marginHorizontal: 4,
+  },
+  dotActive: {
+    width: 18,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#111827',
   },
 });
