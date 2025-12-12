@@ -1,5 +1,5 @@
 // src/screens/ReasonScreen.js
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,86 +9,89 @@ import {
   Easing,
 } from 'react-native';
 import useSessionStore from '../store/useSessionStore';
-import { getAffirmationForFeeling } from '../data/affirmations';
-import { getQuoteForFeeling } from '../data/quotes';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const RESTING_TITLE_TRANSLATE_Y = -SCREEN_HEIGHT * 0.2;
 
 export default function ReasonScreen() {
   const selectedFeeling = useSessionStore((state) => state.selectedFeeling);
+
   const reasonPhase = useSessionStore((state) => state.reasonPhase);
+  const reasonAffirmationText = useSessionStore((state) => state.reasonAffirmationText);
+  const reasonQuoteText = useSessionStore((state) => state.reasonQuoteText);
 
-  const titleOpacity = useRef(new Animated.Value(0)).current;
-  const titleTranslateY = useRef(new Animated.Value(0)).current;
-  const contentOpacity = useRef(new Animated.Value(0)).current;
-  const phaseProgress = useRef(new Animated.Value(0)).current; // 0 = affirmation, 1 = quote
+  const reasonIntroPlayed = useSessionStore((state) => state.reasonIntroPlayed);
+  const setReasonIntroPlayed = useSessionStore((state) => state.setReasonIntroPlayed);
 
-  const [quoteText, setQuoteText] = useState(null);
+  const titleOpacity = useRef(new Animated.Value(1)).current;
+  const titleTranslateY = useRef(new Animated.Value(RESTING_TITLE_TRANSLATE_Y)).current;
+  const contentOpacity = useRef(new Animated.Value(1)).current;
 
-  if (!selectedFeeling) {
-    return <View style={styles.emptyContainer} />;
-  }
+  const phaseProgress = useRef(new Animated.Value(0)).current;
+  const prevReasonPhaseRef = useRef(null);
+
+  if (!selectedFeeling) return <View style={{ flex: 1 }} />;
 
   const feelingLabel = selectedFeeling.label;
 
-  const affirmation = useMemo(
-    () => getAffirmationForFeeling(selectedFeeling.key),
-    [selectedFeeling.key]
-  );
-
+  // Intro animation only once per session
   useEffect(() => {
-    const q = getQuoteForFeeling(selectedFeeling.key);
-    setQuoteText(q);
-  }, [selectedFeeling.key]);
+    if (reasonIntroPlayed) {
+      // Snap to resting state, no animation
+      titleOpacity.setValue(1);
+      titleTranslateY.setValue(RESTING_TITLE_TRANSLATE_Y);
+      contentOpacity.setValue(1);
+      return;
+    }
 
-  // Initial entrance animation
-  useEffect(() => {
+    // Play intro once
     titleOpacity.setValue(0);
     titleTranslateY.setValue(0);
     contentOpacity.setValue(0);
 
-    // Set initial phase progress based on reasonPhase
-    phaseProgress.setValue(reasonPhase === 1 ? 1 : 0);
-
-    const fadeInTitle = Animated.timing(titleOpacity, {
-      toValue: 1,
-      duration: 600,
-      useNativeDriver: true,
-    });
-
-    const holdCenter = Animated.delay(1500);
-
-    const slideUpTitle = Animated.timing(titleTranslateY, {
-      toValue: -SCREEN_HEIGHT * 0.2,
-      duration: 500,
-      useNativeDriver: true,
-    });
-
-    const fadeInContent = Animated.timing(contentOpacity, {
-      toValue: 1,
-      duration: 400,
-      useNativeDriver: true,
-    });
-
     Animated.sequence([
-      fadeInTitle,
-      holdCenter,
-      slideUpTitle,
-      fadeInContent,
-    ]).start();
+      Animated.timing(titleOpacity, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.delay(1500),
+      Animated.timing(titleTranslateY, {
+        toValue: RESTING_TITLE_TRANSLATE_Y,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.timing(contentOpacity, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setReasonIntroPlayed(true);
+    });
   }, [selectedFeeling.key]);
 
-  // Smooth crossfade between affirmation and quote when phase changes
+  // Hydrate phaseProgress statically
   useEffect(() => {
-    Animated.timing(phaseProgress, {
-      toValue: reasonPhase === 1 ? 1 : 0,
-      duration: 380,
-      easing: Easing.inOut(Easing.ease),
-      useNativeDriver: true,
-    }).start();
+    phaseProgress.setValue(reasonPhase === 1 ? 1 : 0);
+    prevReasonPhaseRef.current = reasonPhase;
+  }, [selectedFeeling.key]);
+
+  // Animate only 0 -> 1 transition
+  useEffect(() => {
+    const prev = prevReasonPhaseRef.current;
+    prevReasonPhaseRef.current = reasonPhase;
+
+    if (prev === 0 && reasonPhase === 1) {
+      Animated.timing(phaseProgress, {
+        toValue: 1,
+        duration: 380,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: true,
+      }).start();
+    }
   }, [reasonPhase]);
 
-  // Derived opacities
   const affirmationOpacity = phaseProgress.interpolate({
     inputRange: [0, 1],
     outputRange: [1, 0],
@@ -101,7 +104,6 @@ export default function ReasonScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Title block */}
       <Animated.View
         style={[
           styles.titleBlock,
@@ -115,40 +117,18 @@ export default function ReasonScreen() {
         <Text style={styles.feelingText}>{feelingLabel}</Text>
       </Animated.View>
 
-      {/* Content block with crossfading layers */}
-      <Animated.View
-        style={[
-          styles.contentBlock,
-          { opacity: contentOpacity },
-        ]}
-      >
-        {/* Affirmation layer */}
-        <Animated.View
-          style={[
-            styles.layer,
-            { opacity: affirmationOpacity },
-          ]}
-        >
+      <Animated.View style={[styles.contentBlock, { opacity: contentOpacity }]}>
+        <Animated.View style={[styles.layer, { opacity: affirmationOpacity }]}>
           <Text style={styles.sectionLabel}>Awareness matters</Text>
-          <Text style={styles.mainText}>{affirmation}</Text>
-          <Text style={styles.subtleHint}>
-            Take a moment with this. When you are ready, swipe up for a quote.
-          </Text>
+          <Text style={styles.mainText}>{reasonAffirmationText}</Text>
         </Animated.View>
 
-        {/* Quote layer */}
-        <Animated.View
-          style={[
-            styles.layer,
-            { opacity: quoteOpacity },
-          ]}
-        >
+        <Animated.View style={[styles.layer, { opacity: quoteOpacity }]}>
           <Text style={styles.sectionLabel}>A thought for this feeling</Text>
-          {quoteText && <Text style={styles.quoteText}>{quoteText}</Text>}
+          <Text style={styles.quoteText}>{reasonQuoteText}</Text>
         </Animated.View>
       </Animated.View>
 
-      {/* Swipe hint at the bottom */}
       <View style={styles.swipeHintContainer}>
         <Text style={styles.swipeHintText}>Swipe up to continue</Text>
       </View>
@@ -157,8 +137,6 @@ export default function ReasonScreen() {
 }
 
 const styles = StyleSheet.create({
-  emptyContainer: { flex: 1 },
-
   container: {
     flex: 1,
     paddingHorizontal: 24,
@@ -189,8 +167,6 @@ const styles = StyleSheet.create({
     width: '100%',
     minHeight: 120,
   },
-
-  // Layers overlap each other and crossfade
   layer: {
     position: 'absolute',
     left: 0,
@@ -208,13 +184,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#374151',
     lineHeight: 22,
-    marginBottom: 14,
-  },
-  subtleHint: {
-    fontFamily: 'PlusJakartaSans_400Regular',
-    fontSize: 13,
-    color: '#6b7280',
-    lineHeight: 20,
   },
   quoteText: {
     fontFamily: 'PlusJakartaSans_400Regular',
