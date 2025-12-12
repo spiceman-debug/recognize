@@ -9,31 +9,30 @@ const useSessionStore = create((set) => ({
   setFeeling: (feeling) =>
     set({
       selectedFeeling: feeling,
-      // reset reasons when feeling changes
       selectedReasons: [],
+      reasonPhase: 0,
     }),
 
   selectedReasons: [],
   toggleReason: (reason) =>
     set((state) => {
-      const exists = state.selectedReasons.find((r) => r.key === reason.key);
-      if (exists) {
-        return {
-          selectedReasons: state.selectedReasons.filter(
-            (r) => r.key !== reason.key
-          ),
-        };
-      }
+      const exists = state.selectedReasons.some((r) => r.key === reason.key);
       return {
-        selectedReasons: [...state.selectedReasons, reason],
+        selectedReasons: exists
+          ? state.selectedReasons.filter((r) => r.key !== reason.key)
+          : [...state.selectedReasons, reason],
       };
     }),
+
+  reasonPhase: 0,
+  setReasonPhase: (phase) => set({ reasonPhase: phase }),
 
   clearSession: () =>
     set({
       currentScreen: 0,
       selectedFeeling: null,
       selectedReasons: [],
+      reasonPhase: 0,
     }),
 }));
 

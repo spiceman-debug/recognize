@@ -1,36 +1,54 @@
 // src/screens/ReasonScreen.js
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Animated,
   Dimensions,
-  TouchableOpacity,
+  Easing,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import useSessionStore from '../store/useSessionStore';
-import { getReasonsForFeeling } from '../data/reasons';
+import { getAffirmationForFeeling } from '../data/affirmations';
+import { getQuoteForFeeling } from '../data/quotes';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function ReasonScreen() {
   const selectedFeeling = useSessionStore((state) => state.selectedFeeling);
-  const selectedReasons = useSessionStore((state) => state.selectedReasons);
-  const toggleReason = useSessionStore((state) => state.toggleReason);
-
-  if (!selectedFeeling) return <View style={styles.emptyContainer} />;
+  const reasonPhase = useSessionStore((state) => state.reasonPhase);
 
   const titleOpacity = useRef(new Animated.Value(0)).current;
   const titleTranslateY = useRef(new Animated.Value(0)).current;
-  const subtitleOpacity = useRef(new Animated.Value(1)).current;
-  const reasonsOpacity = useRef(new Animated.Value(0)).current;
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+  const phaseProgress = useRef(new Animated.Value(0)).current; // 0 = affirmation, 1 = quote
 
+  const [quoteText, setQuoteText] = useState(null);
+
+  if (!selectedFeeling) {
+    return <View style={styles.emptyContainer} />;
+  }
+
+  const feelingLabel = selectedFeeling.label;
+
+  const affirmation = useMemo(
+    () => getAffirmationForFeeling(selectedFeeling.key),
+    [selectedFeeling.key]
+  );
+
+  useEffect(() => {
+    const q = getQuoteForFeeling(selectedFeeling.key);
+    setQuoteText(q);
+  }, [selectedFeeling.key]);
+
+  // Initial entrance animation
   useEffect(() => {
     titleOpacity.setValue(0);
     titleTranslateY.setValue(0);
-    subtitleOpacity.setValue(1);
-    reasonsOpacity.setValue(0);
+    contentOpacity.setValue(0);
+
+    // Set initial phase progress based on reasonPhase
+    phaseProgress.setValue(reasonPhase === 1 ? 1 : 0);
 
     const fadeInTitle = Animated.timing(titleOpacity, {
       toValue: 1,
@@ -40,47 +58,46 @@ export default function ReasonScreen() {
 
     const holdCenter = Animated.delay(1500);
 
-    const fadeOutSubtitle = Animated.timing(subtitleOpacity, {
-      toValue: 0,
-      duration: 350,
-      useNativeDriver: true,
-    });
-
-    const slideTitleUp = Animated.timing(titleTranslateY, {
+    const slideUpTitle = Animated.timing(titleTranslateY, {
       toValue: -SCREEN_HEIGHT * 0.2,
       duration: 500,
       useNativeDriver: true,
     });
 
-    const fadeInReasons = Animated.timing(reasonsOpacity, {
+    const fadeInContent = Animated.timing(contentOpacity, {
       toValue: 1,
-      duration: 350,
+      duration: 400,
       useNativeDriver: true,
     });
 
     Animated.sequence([
       fadeInTitle,
       holdCenter,
-      fadeOutSubtitle,
-      slideTitleUp,
-      fadeInReasons,
+      slideUpTitle,
+      fadeInContent,
     ]).start();
-  }, [selectedFeeling.label]);
+  }, [selectedFeeling.key]);
 
-  const subtitleText = "Let’s take a moment to understand what’s behind this.";
-  const reasons = getReasonsForFeeling(selectedFeeling.key);
+  // Smooth crossfade between affirmation and quote when phase changes
+  useEffect(() => {
+    Animated.timing(phaseProgress, {
+      toValue: reasonPhase === 1 ? 1 : 0,
+      duration: 380,
+      easing: Easing.inOut(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  }, [reasonPhase]);
 
-  const isSelected = (reason) =>
-    selectedReasons.some((r) => r.key === reason.key);
+  // Derived opacities
+  const affirmationOpacity = phaseProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0],
+  });
 
-  const handleToggleReason = async (reason) => {
-    toggleReason(reason);
-    try {
-      await Haptics.selectionAsync();
-    } catch {
-      // ignore
-    }
-  };
+  const quoteOpacity = phaseProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
 
   return (
     <View style={styles.container}>
@@ -95,49 +112,43 @@ export default function ReasonScreen() {
         ]}
       >
         <Text style={styles.preTitle}>You chose</Text>
-
-        <Text style={styles.feelingText}>{selectedFeeling.label}</Text>
-
-        <Animated.Text style={[styles.subtitle, { opacity: subtitleOpacity }]}>
-          {subtitleText}
-        </Animated.Text>
+        <Text style={styles.feelingText}>{feelingLabel}</Text>
       </Animated.View>
 
-      {/* Prompt + reason selection */}
+      {/* Content block with crossfading layers */}
       <Animated.View
         style={[
-          styles.reasonArea,
-          { opacity: reasonsOpacity },
+          styles.contentBlock,
+          { opacity: contentOpacity },
         ]}
       >
-        <Text style={styles.reasonPrompt}>
-          What do you think is contributing to this feeling today?
-        </Text>
+        {/* Affirmation layer */}
+        <Animated.View
+          style={[
+            styles.layer,
+            { opacity: affirmationOpacity },
+          ]}
+        >
+          <Text style={styles.sectionLabel}>Awareness matters</Text>
+          <Text style={styles.mainText}>{affirmation}</Text>
+          <Text style={styles.subtleHint}>
+            Take a moment with this. When you are ready, swipe up for a quote.
+          </Text>
+        </Animated.View>
 
-        <Text style={styles.reasonHint}>
-          Tap one or a few that resonate with you.
-        </Text>
-
-        <View style={styles.chipsWrapper}>
-          {reasons.map((reason) => {
-            const selected = isSelected(reason);
-            return (
-              <TouchableOpacity
-                key={reason.key}
-                activeOpacity={0.9}
-                onPress={() => handleToggleReason(reason)}
-                style={[styles.chip, selected && styles.chipSelected]}
-              >
-                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                  {reason.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        {/* Quote layer */}
+        <Animated.View
+          style={[
+            styles.layer,
+            { opacity: quoteOpacity },
+          ]}
+        >
+          <Text style={styles.sectionLabel}>A thought for this feeling</Text>
+          {quoteText && <Text style={styles.quoteText}>{quoteText}</Text>}
+        </Animated.View>
       </Animated.View>
 
-      {/* Swipe up hint glued to bottom – identical to FeelingScreen */}
+      {/* Swipe hint at the bottom */}
       <View style={styles.swipeHintContainer}>
         <Text style={styles.swipeHintText}>Swipe up to continue</Text>
       </View>
@@ -172,62 +183,46 @@ const styles = StyleSheet.create({
     color: '#111827',
     textAlign: 'center',
   },
-  subtitle: {
-    marginTop: 16,
-    fontFamily: 'PlusJakartaSans_400Regular',
-    fontSize: 17,
-    color: '#4b5563',
-    textAlign: 'center',
-    lineHeight: 24,
-  },
 
-  reasonArea: {
+  contentBlock: {
     marginTop: SCREEN_HEIGHT * 0.18,
     width: '100%',
-    alignItems: 'center',
+    minHeight: 120,
   },
-  reasonPrompt: {
-    fontFamily: 'PlusJakartaSans_400Regular',
-    fontSize: 16,
+
+  // Layers overlap each other and crossfade
+  layer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+  },
+
+  sectionLabel: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 15,
     color: '#111827',
-    textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  reasonHint: {
+  mainText: {
+    fontFamily: 'PlusJakartaSans_400Regular',
+    fontSize: 15,
+    color: '#374151',
+    lineHeight: 22,
+    marginBottom: 14,
+  },
+  subtleHint: {
     fontFamily: 'PlusJakartaSans_400Regular',
     fontSize: 13,
     color: '#6b7280',
-    textAlign: 'center',
-    marginBottom: 16,
+    lineHeight: 20,
   },
-
-  chipsWrapper: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  chip: {
-    width: '100%',
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderRadius: 999,
-    backgroundColor: 'rgba(15,23,42,0.06)',
-    marginBottom: 8,
-    alignItems: 'center',
-  },
-  chipSelected: {
-    backgroundColor: '#111827',
-  },
-  chipText: {
+  quoteText: {
     fontFamily: 'PlusJakartaSans_400Regular',
-    fontSize: 15,
+    fontSize: 16,
     color: '#111827',
-  },
-  chipTextSelected: {
-    color: '#ffffff',
-    fontWeight: '500',
+    lineHeight: 24,
   },
 
-  // EXACT same as FeelingScreen
   swipeHintContainer: {
     position: 'absolute',
     bottom: 32,
